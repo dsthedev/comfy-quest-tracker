@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trolly's Comfy Quest Tracker (Era 16)</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+      #contentCompleted td:last-child,
+      #contentCompleted th:last-child {
+        display: none;
+      }
+    </style>
+  </head>
+  <body class="bg-gray-900 text-gray-200 min-h-screen p-6">
+    <div class="max-w-7xl mx-auto">
+      <div class="max-w-7xl mx-auto mb-6 px-4">
+        <h1
+          class="text-3xl lg:text-4xl font-extrabold text-indigo-400 mb-4 text-center lg:text-left"
+        >
+          Trolly's Comfy Quest Tracker
+          <span class="text-gray-300 text-lg">(Era 16)</span>
+        </h1>
+        <div class="flex flex-col lg:flex-row lg:items-start lg:gap-8">
+          <!-- GREETINGS CALLOUT -->
+          <div class="lg:flex-1 mb-4 lg:mb-0">
+            <div
+              class="bg-gray-800 border-l-4 border-indigo-500 p-4 rounded shadow-md text-gray-200 space-y-2"
+            >
+              <p class="font-semibold text-lg text-indigo-300">
+                GREETINGS COMRADES!
+              </p>
+              <ul class="list-disc list-inside space-y-1 text-sm lg:text-base">
+                <li>
+                  This tool is a companion for the <a href="https://docs.google.com/spreadsheets/d/1rbZFEz-E6_2hc4OfjBoax99YRKjZSS1A8IDouNfzVgA/edit?gid=1687613722#gid=1687613722">Comfy Best West Quests</a> in Era 16.
+                </li>
+                <li>
+                  Download the quests CSV file <a href="#">here</a> to upload it into the tracker.
+                </li>
+                <li>
+                  Once you start checking off items here, they are stored in your browser's local storage. This means you can close the tab and come back later without losing your progress. However, if you clear your browser data, your progress will be lost, so be cautious!
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- FILTERS & SEARCH -->
+          <div class="lg:flex-1">
+            <p class="font-semibold text-indigo-300 mb-2">Filters & Search</p>
+            <div class="flex flex-col gap-4 items-start">
+              <input
+                type="text"
+                id="searchInput"
+                placeholder="Search quests..."
+                class="flex-1 p-2 rounded bg-gray-800 border border-gray-700 text-gray-200"
+              />
+              <button
+                id="toggleBiomeColors"
+                class="px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded"
+              >
+                Show Biome Labels
+              </button>
+              <div id="biomeFilters" class="flex flex-wrap gap-2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div>
+        <div class="flex border-b border-gray-700 mb-2">
+          <button
+            id="tabIncomplete"
+            class="px-4 py-2 font-semibold border-b-2 border-indigo-500 focus:outline-none"
+          >
+            Incomplete
+            <span id="incompleteCount" class="ml-1 text-sm text-gray-400"
+              >(0)</span
+            >
+          </button>
+          <button
+            id="tabCompleted"
+            class="px-4 py-2 font-semibold border-b-2 border-gray-700 focus:outline-none"
+          >
+            Completed
+            <span id="completedCount" class="ml-1 text-sm text-gray-400"
+              >(0)</span
+            >
+          </button>
+        </div>
+
+        <!-- Tab content -->
+        <div id="contentIncomplete">
+          <table class="min-w-full border border-gray-700 rounded bg-gray-800">
+            <thead class="bg-gray-700 text-gray-200">
+              <tr class="text-left">
+                <th class="p-2 border-b">&nbsp;</th>
+                <th class="p-2 border-b biome-col hidden">Biome</th>
+                <th class="p-2 border-b">Quest</th>
+                <th class="p-2 border-b">Requirements</th>
+                <th class="p-2 border-b">Reward</th>
+                <th class="p-2 border-b">Format</th>
+              </tr>
+            </thead>
+            <tbody
+              id="incompleteTable"
+              class="divide-y divide-gray-700"
+            ></tbody>
+          </table>
+        </div>
+
+        <div id="contentCompleted" class="hidden">
+          <table class="min-w-full border border-gray-700 rounded bg-gray-800">
+            <thead class="bg-gray-700 text-gray-200">
+              <tr class="text-left">
+                <th class="p-2 border-b">&nbsp;</th>
+                <th class="p-2 border-b biome-col hidden">Biome</th>
+                <th class="p-2 border-b">Quest</th>
+                <th class="p-2 border-b">Requirements</th>
+                <th class="p-2 border-b">Rewarded</th>
+                <th class="p-2 border-b">&nbsp;</th>
+              </tr>
+            </thead>
+            <tbody id="completedTable" class="divide-y divide-gray-700"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <hr />
+      <div class="mx-auto max-w-sm my-4">
+        <label for="csvFile" class="block mb-2 text-sm font-medium"
+          >Import Quests CSV:</label
+        >
+        <input
+          type="file"
+          id="csvFile"
+          accept=".csv"
+          class="block p-2 w-full text-sm text-gray-400 border border-gray-700 rounded cursor-pointer bg-gray-800 focus:outline-none"
+        />
+      </div>
+
+      <div
+        id="clipboardPopup"
+        class="fixed bottom-6 right-6 bg-gray-800 text-gray-200 p-4 rounded shadow-lg opacity-0 pointer-events-none transition-all duration-500 max-w-xs z-50"
+      >
+        <!-- Text will be injected dynamically -->
+      </div>
+    </div>
+
+    <script>
+      const csvFileInput = document.getElementById("csvFile");
+      const searchInput = document.getElementById("searchInput");
+      const biomeFiltersDiv = document.getElementById("biomeFilters");
+      const toggleBiomeColorsBtn = document.getElementById("toggleBiomeColors");
+
+      const incompleteTableBody = document.getElementById("incompleteTable");
+      const completedTableBody = document.getElementById("completedTable");
+
+      const tabIncomplete = document.getElementById("tabIncomplete");
+      const tabCompleted = document.getElementById("tabCompleted");
+      const contentIncomplete = document.getElementById("contentIncomplete");
+      const contentCompleted = document.getElementById("contentCompleted");
+
+      const popup = document.getElementById("clipboardPopup");
+
+      const biomeClasses = {
+        Meadows: { normal: "bg-green-900", finisher: "bg-green-950" },
+        "Black Forest": { normal: "bg-amber-900", finisher: "bg-amber-950" },
+        Swamp: { normal: "bg-purple-900", finisher: "bg-purple-950" },
+        Mountain: { normal: "bg-blue-900", finisher: "bg-blue-950" },
+        Plains: { normal: "bg-orange-900", finisher: "bg-orange-950" },
+      };
+
+      let showBiomes = false;
+
+      // CSV Parsing
+      function parseCSV(text) {
+        const lines = text.trim().split("\n");
+        const headers = parseCSVLine(lines[0]);
+
+        return lines.slice(1).map((line) => {
+          const values = parseCSVLine(line);
+          const obj = {};
+          headers.forEach((h, i) => (obj[h] = values[i]));
+          obj.completed = false;
+          obj.isFinisher = ["1", "true"].includes(
+            (obj.isFinisher || "").toString().toLowerCase(),
+          );
+          return obj;
+        });
+      }
+
+      function parseCSVLine(line) {
+        const result = [];
+        let inQuotes = false,
+          field = "";
+        for (let i = 0; i < line.length; i++) {
+          const char = line[i];
+          const nextChar = line[i + 1];
+          if (char === '"' && inQuotes && nextChar === '"') {
+            field += '"';
+            i++;
+          } else if (char === '"') {
+            inQuotes = !inQuotes;
+          } else if (char === "," && !inQuotes) {
+            result.push(field);
+            field = "";
+          } else {
+            field += char;
+          }
+        }
+        result.push(field);
+        return result;
+      }
+
+      // LocalStorage
+      function saveToLocalStorage(data) {
+        localStorage.setItem("questData", JSON.stringify(data));
+      }
+      function loadFromLocalStorage() {
+        return JSON.parse(localStorage.getItem("questData") || "[]");
+      }
+
+      // Biome Filters
+      function setupBiomeFilters() {
+        const data = loadFromLocalStorage();
+        const biomes = [...new Set(data.map((r) => r.biome))];
+        biomeFiltersDiv.innerHTML = "";
+        biomes.forEach((biome) => {
+          const label = document.createElement("label");
+          label.className = "flex items-center gap-1";
+          label.innerHTML = `<input type="checkbox" class="biomeFilter" value="${biome}" checked> <span>${biome}</span>`;
+          biomeFiltersDiv.appendChild(label);
+        });
+        document
+          .querySelectorAll(".biomeFilter")
+          .forEach((cb) => cb.addEventListener("change", renderTables));
+      }
+
+      // Clipboard
+      function copyToClipboard(text) {
+        navigator.clipboard.writeText(text);
+
+        // Set the popup text
+        popup.innerHTML = `
+    <strong class="block my-3">Copied to clipboard!</strong>
+    Paste this in Comfy Discord Best West Turn-In channel, and don't forget to fill it out!<br><br>
+    <code class="text-xs block bg-gray-900 p-1 rounded break-words">${text}</code>
+  `;
+
+        // Animate in
+        popup.classList.remove("opacity-0", "pointer-events-none");
+        popup.classList.add("opacity-100");
+
+        // Auto-hide after 4 seconds
+        setTimeout(() => {
+          popup.classList.add("opacity-0");
+          popup.classList.add("pointer-events-none");
+        }, 4000);
+      }
+
+      // Render Tables
+      function renderTables() {
+        const data = loadFromLocalStorage();
+        const searchTerm = searchInput.value.toLowerCase();
+        const activeBiomes = Array.from(
+          document.querySelectorAll(".biomeFilter:checked"),
+        ).map((cb) => cb.value);
+
+        incompleteTableBody.innerHTML = "";
+        completedTableBody.innerHTML = "";
+
+        data.forEach((row, index) => {
+          const rowText = Object.values(row)
+            .filter((v) => typeof v === "string")
+            .join(" ")
+            .toLowerCase();
+          if (searchTerm && !rowText.includes(searchTerm)) return;
+          if (activeBiomes.length && !activeBiomes.includes(row.biome)) return;
+
+          const tr = document.createElement("tr");
+          tr.className = `
+      border-2 border-slate-950
+      ${row.isFinisher ? biomeClasses[row.biome].finisher : biomeClasses[row.biome].normal} 
+      bg-opacity-20
+      transition-all duration-300
+      hover:brightness-90 hover:shadow-inner hover:shadow-black/40
+    `;
+
+          if (row.biome && biomeClasses[row.biome]) {
+            const cls = row.isFinisher
+              ? biomeClasses[row.biome].finisher
+              : biomeClasses[row.biome].normal;
+            tr.classList.add(cls, "bg-opacity-20");
+          }
+
+          tr.innerHTML = `
+      <td class="p-2 border-b text-center">
+        <input type="checkbox" data-index="${index}" ${row.completed ? "checked" : ""}
+               class="w-5 h-5 cursor-pointer hover:ring-2 hover:ring-green-400 transition-all"
+               title="Check to mark as completed (moves to Completed tab)">
+      </td>
+      <td class="p-2 border-b biome-col ${showBiomes ? "" : "hidden"}">${row.biome}</td>
+      <td class="p-2 border-b"><strong>${row.quest}</strong></td>
+      <td class="p-2 border-b whitespace-pre-line">${row.requirements.replace(/\\n/g, "<br>")}</td>
+      <td class="p-2 border-b">${row.reward}</td>
+      <td class="p-2 border-b">
+        <button class="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm" title="${row.format}">Copy</button>
+      </td>
+    `;
+          if (row.completed) completedTableBody.appendChild(tr);
+          else incompleteTableBody.appendChild(tr);
+        });
+
+        document.getElementById("incompleteCount").textContent =
+          `(${incompleteTableBody.children.length})`;
+        document.getElementById("completedCount").textContent =
+          `(${completedTableBody.children.length})`;
+
+        document
+          .querySelectorAll("button[title]")
+          .forEach((btn) => (btn.onclick = () => copyToClipboard(btn.title)));
+      }
+
+      // CSV Import
+      csvFileInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const data = parseCSV(e.target.result);
+          saveToLocalStorage(data);
+          setupBiomeFilters();
+          renderTables();
+        };
+        reader.readAsText(file);
+      });
+
+      // Search
+      searchInput.addEventListener("input", renderTables);
+
+      // Toggle biome visibility
+      toggleBiomeColorsBtn.addEventListener("click", () => {
+        showBiomes = !showBiomes;
+        document
+          .querySelectorAll(".biome-col")
+          .forEach((td) => td.classList.toggle("hidden", !showBiomes));
+        renderTables();
+      });
+
+      // Checkbox fade + toggle
+      [incompleteTableBody, completedTableBody].forEach((tbody) => {
+        tbody.addEventListener("change", (e) => {
+          if (e.target.type !== "checkbox") return;
+          const idx = e.target.dataset.index;
+          const rowEl = e.target.closest("tr");
+          rowEl.classList.add("opacity-0");
+          setTimeout(() => {
+            const data = loadFromLocalStorage();
+            data[idx].completed = e.target.checked;
+            saveToLocalStorage(data);
+            renderTables();
+          }, 500);
+        });
+      });
+
+      // Tabs
+      tabIncomplete.addEventListener("click", () => {
+        contentIncomplete.classList.remove("hidden");
+        contentCompleted.classList.add("hidden");
+        tabIncomplete.classList.add("border-indigo-500");
+        tabCompleted.classList.remove("border-indigo-500");
+        tabCompleted.classList.add("border-gray-700");
+      });
+      tabCompleted.addEventListener("click", () => {
+        contentCompleted.classList.remove("hidden");
+        contentIncomplete.classList.add("hidden");
+        tabCompleted.classList.add("border-indigo-500");
+        tabIncomplete.classList.remove("border-indigo-500");
+        tabIncomplete.classList.add("border-gray-700");
+      });
+
+      // Initial load
+      if (loadFromLocalStorage().length) {
+        setupBiomeFilters();
+        renderTables();
+      }
+    </script>
+  </body>
+</html>
