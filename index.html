@@ -34,6 +34,7 @@
                 <li>
                   This tool is a companion for the
                   <a
+                  class="inline p-1 mx-2 text-sm text-teal-200 border border-teal-700 rounded cursor-pointer bg-teal-800 focus:outline-none"
                     href="https://docs.google.com/spreadsheets/d/1rbZFEz-E6_2hc4OfjBoax99YRKjZSS1A8IDouNfzVgA/edit?gid=1687613722#gid=1687613722"
                     >Comfy Best West Quests</a
                   >
@@ -51,11 +52,7 @@
                   file to manage quest tracking.
                 </li>
                 <li>
-                  Once you start checking off items here, they are stored in
-                  your browser's local storage. This means you can close the tab
-                  and come back later without losing your progress. However, if
-                  you clear your browser data, progress will be lost, so be
-                  cautious!
+                  Data is stored locally in your browser so it's persistent. Clearing your browser cache <em>will erase all progress</em>.
                 </li>
               </ul>
             </div>
@@ -367,7 +364,7 @@
       <td class="p-2 border-b whitespace-pre-line">${row.requirements.replace(/\\n/g, "<br>")}</td>
       <td class="p-2 border-b">${row.reward}</td>
       <td class="p-2 border-b">
-        <button class="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-sm" title="${row.format}">Copy</button>
+        <button class="px-3 py-2 border-2 border-slate-600 bg-slate-800 hover:bg-slate-900 rounded text-sm" title="${row.format}">Copy</button>
       </td>
     `;
           if (row.completed) completedTableBody.appendChild(tr);
