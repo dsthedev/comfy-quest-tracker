@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Trolly's Approved Comfy Mod List</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = { darkMode: "class" };
+    </script>
+  </head>
+
+  <body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div class="max-w-[1600px] mx-auto p-6 space-y-6">
+      <!-- Header -->
+      <header class="space-y-2">
+        <h1
+          class="text-3xl lg:text-4xl font-extrabold text-indigo-400 mb-4 text-center lg:text-left"
+        >
+          Trolly's Approved Comfy Mod List
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400 max-w-3xl">
+          A curated list of Valheim mods approved for use on Comfy servers.
+          Search, filter by category, import/export CSVs, and everything
+          persists locally.
+        </p>
+      </header>
+
+      <!-- Controls -->
+      <div class="flex flex-wrap gap-3 items-center">
+        <input
+          id="searchInput"
+          type="text"
+          placeholder="Search mods..."
+          class="px-3 py-2 border rounded w-64 dark:bg-gray-800 dark:border-gray-700"
+        />
+
+        <input id="csvInput" type="file" accept=".csv" class="hidden" />
+
+        <button
+          onclick="document.getElementById('csvInput').click()"
+          class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Import CSV
+        </button>
+
+        <button
+          onclick="exportCSV()"
+          class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+        >
+          Export Visible
+        </button>
+
+        <button
+          onclick="clearAll()"
+          class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+        >
+          Clear All
+        </button>
+      </div>
+
+      <!-- Category Filters -->
+      <div id="categoryFilters" class="flex flex-wrap gap-4"></div>
+
+      <!-- Table -->
+      <div class="overflow-x-auto border rounded dark:border-gray-700">
+        <table class="min-w-full text-sm border-collapse">
+          <thead class="bg-gray-200 dark:bg-gray-800">
+            <tr>
+              <th class="px-3 py-2 text-left">Category</th>
+              <th class="px-3 py-2 text-left">Mod</th>
+              <th class="px-3 py-2 text-left">Alt Source</th>
+              <th class="px-3 py-2 text-left">Status</th>
+              <th class="px-3 py-2 text-left">Description</th>
+              <th class="px-3 py-2 text-left">Notes</th>
+              <th class="px-3 py-2 text-left">Approved</th>
+              <th class="px-3 py-2 text-left">By</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      const STORAGE_KEY = "comfyModList";
+      let mods = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      let activeCategories = new Set();
+      let categoryColorMap = {};
+
+      const tableBody = document.getElementById("tableBody");
+      const searchInput = document.getElementById("searchInput");
+      const csvInput = document.getElementById("csvInput");
+      const categoryFilters = document.getElementById("categoryFilters");
+
+      /* ROYGBIV-ish Tailwind palette (badge colors) */
+      const tailwindColors = [
+        "red",
+        "orange",
+        "amber",
+        "yellow",
+        "lime",
+        "green",
+        "emerald",
+        "teal",
+        "cyan",
+        "sky",
+        "blue",
+        "indigo",
+        "violet",
+        "purple",
+        "fuchsia",
+        "pink",
+        "rose",
+      ].map((c) => ({
+        normal: `bg-${c}-700`,
+        hover: `hover:bg-${c}-800`,
+        special: `bg-${c}-900`,
+      }));
+
+      const statusColorMap = [
+        { match: "approved", color: "bg-green-800" },
+        { match: "not tested", color: "bg-lime-800" },
+        { match: "broken", color: "bg-red-800" },
+        { match: "deprecated", color: "bg-pink-800" },
+      ];
+
+      function getStatusBgClass(status = "") {
+        const s = status.toLowerCase();
+        const entry = statusColorMap.find((e) => s.includes(e.match));
+        return entry ? entry.color : "";
+      }
+
+      function assignCategoryColors() {
+        categoryColorMap = {};
+        [...new Set(mods.map((m) => m.category).filter(Boolean))].forEach(
+          (cat, i) => {
+            categoryColorMap[cat] = tailwindColors[i % tailwindColors.length];
+          },
+        );
+      }
+
+      function save() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(mods));
+      }
+
+      function parseCSV(text) {
+        const lines = text.trim().split("\n");
+        const headers = lines
+          .shift()
+          .split(",")
+          .map((h) => h.replace(/'/g, "").trim());
+
+        return lines.map((line) => {
+          const values = line.split(",").map((v) => v.replace(/'/g, "").trim());
+          const obj = {};
+          headers.forEach((h, i) => (obj[h] = values[i] || ""));
+          return obj;
+        });
+      }
+
+      function getVisibleMods() {
+        const search = searchInput.value.toLowerCase();
+        return mods
+          .filter(
+            (m) => !activeCategories.size || activeCategories.has(m.category),
+          )
+          .filter((m) =>
+            Object.values(m).join(" ").toLowerCase().includes(search),
+          );
+      }
+
+      function exportCSV() {
+        const visible = getVisibleMods();
+        if (!visible.length) return;
+
+        const headers = Object.keys(visible[0]);
+        const rows = visible.map((m) =>
+          headers.map((h) => `'${(m[h] || "").replace(/'/g, "")}'`).join(","),
+        );
+
+        const csv = [headers.join(","), ...rows].join("\n");
+        const blob = new Blob([csv], { type: "text/csv" });
+
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "comfy_mods_visible.csv";
+        a.click();
+      }
+
+      function clearAll() {
+        mods = [];
+        activeCategories.clear();
+        localStorage.removeItem(STORAGE_KEY);
+        render();
+      }
+
+      function buildCategoryFilters() {
+        categoryFilters.innerHTML = "";
+        const categories = [
+          ...new Set(mods.map((m) => m.category).filter(Boolean)),
+        ];
+
+        categories.forEach((cat) => {
+          activeCategories.add(cat);
+
+          const label = document.createElement("label");
+          label.className = "flex items-center gap-2";
+
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = true;
+          checkbox.onchange = () => {
+            checkbox.checked
+              ? activeCategories.add(cat)
+              : activeCategories.delete(cat);
+            render();
+          };
+
+          label.appendChild(checkbox);
+          label.append(cat);
+          categoryFilters.appendChild(label);
+        });
+      }
+
+      function render() {
+        tableBody.innerHTML = "";
+        const visible = getVisibleMods();
+
+        visible.forEach((m, index) => {
+          const stripe =
+            index % 2 === 0
+              ? "bg-gray-600 dark:bg-gray-800"
+              : "bg-gray-600 dark:bg-gray-850";
+
+          const tr = document.createElement("tr");
+          tr.className = `
+      ${stripe}
+      transition-all
+      hover:shadow-inner
+      hover:shadow-black/20
+    `;
+
+          const color = categoryColorMap[m.category] || tailwindColors[0];
+
+          const modLink = m.modurl
+            ? `<a href="${m.modurl}" target="_blank" class="underline text-xl">${m.modName}</a>`
+            : `<span class="text-xl">${m.modName}</span>`;
+
+          const altLink = m.altsrcurl
+            ? `<a href="${m.altsrcurl}" target="_blank" class="underline">${m.altsrc}</a>`
+            : m.altsrc || "";
+
+          tr.innerHTML = `
+      <td class="px-3 py-2 whitespace-nowrap">
+        <span class="
+          ${color.normal} ${color.hover}
+          text-white text-xs font-semibold
+          px-2 py-1 rounded-full
+          transition-colors
+        ">
+          ${m.category}
+        </span>
+      </td>
+      <td class="px-3 py-2">${modLink}</td>
+      <td class="px-3 py-2">${altLink}</td>
+      <td class="px-3 py-2 text-white border-2 border-slate-900 ${getStatusBgClass(m.status)}">
+        ${m.status}
+      </td>
+      <td class="px-3 py-2">${m.description}</td>
+      <td class="px-3 py-2">${m.notes}</td>
+      <td class="px-3 py-2">${m.approveddate}</td>
+      <td class="px-3 py-2">${m.approvedby}</td>
+    `;
+
+          tableBody.appendChild(tr);
+        });
+
+        save();
+      }
+
+      csvInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+          mods = parseCSV(reader.result);
+          activeCategories.clear();
+          assignCategoryColors();
+          buildCategoryFilters();
+          render();
+        };
+        reader.readAsText(file);
+      });
+
+      searchInput.addEventListener("input", render);
+
+      assignCategoryColors();
+      buildCategoryFilters();
+      render();
+    </script>
+  </body>
+</html>
