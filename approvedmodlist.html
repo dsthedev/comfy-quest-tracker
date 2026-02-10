@@ -20,11 +20,14 @@
           Trolly's Approved Comfy Mod List
         </h1>
         <span class="text-xs my-2 block">
-          Like this? Check out my 
-          <a href="/comfy-quest-tracker" target="_blank"
-             class="inline-block bg-sky-200 text-sky-800 mx-2 px-2 py-0.5 rounded text-xs font-semibold hover:bg-sky-300 transition-colors">
+          Like this? Check out my
+          <a
+            href="/comfy-quest-tracker"
+            target="_blank"
+            class="inline-block bg-sky-200 text-sky-800 mx-2 px-2 py-0.5 rounded text-xs font-semibold hover:bg-sky-300 transition-colors"
+          >
             Comfy Quest Tracker
-          </a> 
+          </a>
           too! <code class="font-mono text-muted-foreground">(WIP)</code>
         </span>
         <p class="text-gray-600 dark:text-gray-400 max-w-3xl">
@@ -101,7 +104,6 @@
       const csvInput = document.getElementById("csvInput");
       const categoryFilters = document.getElementById("categoryFilters");
 
-      /* ROYGBIV-ish Tailwind palette (badge colors) */
       const tailwindColors = [
         "red",
         "orange",
@@ -158,7 +160,6 @@
           .shift()
           .split(",")
           .map((h) => h.replace(/'/g, "").trim());
-
         return lines.map((line) => {
           const values = line.split(",").map((v) => v.replace(/'/g, "").trim());
           const obj = {};
@@ -181,15 +182,12 @@
       function exportCSV() {
         const visible = getVisibleMods();
         if (!visible.length) return;
-
         const headers = Object.keys(visible[0]);
         const rows = visible.map((m) =>
           headers.map((h) => `'${(m[h] || "").replace(/'/g, "")}'`).join(","),
         );
-
         const csv = [headers.join(","), ...rows].join("\n");
         const blob = new Blob([csv], { type: "text/csv" });
-
         const a = document.createElement("a");
         a.href = URL.createObjectURL(blob);
         a.download = "comfy_mods_visible.csv";
@@ -208,13 +206,10 @@
         const categories = [
           ...new Set(mods.map((m) => m.category).filter(Boolean)),
         ];
-
         categories.forEach((cat) => {
           activeCategories.add(cat);
-
           const label = document.createElement("label");
           label.className = "flex items-center gap-2";
-
           const checkbox = document.createElement("input");
           checkbox.type = "checkbox";
           checkbox.checked = true;
@@ -224,7 +219,6 @@
               : activeCategories.delete(cat);
             render();
           };
-
           label.appendChild(checkbox);
           label.append(cat);
           categoryFilters.appendChild(label);
@@ -234,63 +228,40 @@
       function render() {
         tableBody.innerHTML = "";
         const visible = getVisibleMods();
-
         visible.forEach((m, index) => {
           const stripe =
             index % 2 === 0
               ? "bg-gray-600 dark:bg-gray-800"
               : "bg-gray-600 dark:bg-gray-850";
-
           const tr = document.createElement("tr");
-          tr.className = `
-      ${stripe}
-      transition-all
-      hover:shadow-inner
-      hover:shadow-black/20
-    `;
-
+          tr.className = `${stripe} transition-all hover:shadow-inner hover:shadow-black/20`;
           const color = categoryColorMap[m.category] || tailwindColors[0];
-
           const modLink = m.modurl
             ? `<a href="${m.modurl}" target="_blank" class="underline text-xl">${m.modName}</a>`
             : `<span class="text-xl">${m.modName}</span>`;
-
           const altLink = m.altsrcurl
             ? `<a href="${m.altsrcurl}" target="_blank" class="underline">${m.altsrc}</a>`
             : m.altsrc || "";
-
           tr.innerHTML = `
-      <td class="px-3 py-2 whitespace-nowrap">
-        <span class="
-          ${color.normal} ${color.hover}
-          text-white text-xs font-semibold
-          px-2 py-1 rounded-full
-          transition-colors
-        ">
-          ${m.category}
-        </span>
-      </td>
-      <td class="px-3 py-2">${modLink}</td>
-      <td class="px-3 py-2">${altLink}</td>
-      <td class="px-3 py-2 text-white border-2 border-slate-900 ${getStatusBgClass(m.status)}">
-        ${m.status}
-      </td>
-      <td class="px-3 py-2">${m.description}</td>
-      <td class="px-3 py-2">${m.notes}</td>
-      <td class="px-3 py-2">${m.approveddate}</td>
-      <td class="px-3 py-2">${m.approvedby}</td>
-    `;
-
+        <td class="px-3 py-2 whitespace-nowrap">
+          <span class="${color.normal} ${color.hover} text-white text-xs font-semibold px-2 py-1 rounded-full transition-colors">${m.category}</span>
+        </td>
+        <td class="px-3 py-2">${modLink}</td>
+        <td class="px-3 py-2">${altLink}</td>
+        <td class="px-3 py-2 text-white border-2 border-slate-900 ${getStatusBgClass(m.status)}">${m.status}</td>
+        <td class="px-3 py-2">${m.description}</td>
+        <td class="px-3 py-2">${m.notes}</td>
+        <td class="px-3 py-2">${m.approveddate}</td>
+        <td class="px-3 py-2">${m.approvedby}</td>
+      `;
           tableBody.appendChild(tr);
         });
-
         save();
       }
 
       csvInput.addEventListener("change", (e) => {
         const file = e.target.files[0];
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = () => {
           mods = parseCSV(reader.result);
@@ -304,9 +275,25 @@
 
       searchInput.addEventListener("input", render);
 
-      assignCategoryColors();
-      buildCategoryFilters();
-      render();
+      // --- FETCH CSV FROM GITHUB ---
+      async function loadGithubCSV() {
+        const url =
+          "https://raw.githubusercontent.com/dsthedev/comfy-quest-tracker/49eb5dc815abc0fb060edce24b3349e970f53b49/approved.csv";
+        try {
+          const res = await fetch(url);
+          if (!res.ok) throw new Error("Failed to fetch CSV");
+          const text = await res.text();
+          mods = parseCSV(text);
+          activeCategories.clear();
+          assignCategoryColors();
+          buildCategoryFilters();
+          render();
+        } catch (e) {
+          console.error("Error loading GitHub CSV:", e);
+        }
+      }
+
+      loadGithubCSV();
     </script>
   </body>
 </html>
